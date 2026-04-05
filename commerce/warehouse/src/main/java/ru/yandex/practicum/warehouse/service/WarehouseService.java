@@ -14,6 +14,7 @@ import java.security.SecureRandom;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -53,6 +54,11 @@ public class WarehouseService {
 
     @Transactional(readOnly = true)
     public BookedProductsDto checkAvailability(ShoppingCartDto cart) {
+        Map<UUID, WarehouseProduct> productsMap = repository
+                .findAllById(cart.getProducts().keySet())
+                .stream()
+                .collect(Collectors.toMap(WarehouseProduct::getProductId, p -> p));
+
         double totalWeight = 0;
         double totalVolume = 0;
         boolean hasFragile = false;
@@ -61,7 +67,11 @@ public class WarehouseService {
             UUID productId = entry.getKey();
             long requestedQty = entry.getValue();
 
-            WarehouseProduct product = findProduct(productId);
+            WarehouseProduct product = productsMap.get(productId);
+            if (product == null) {
+                throw new NoSpecifiedProductInWarehouseException(
+                        "Product not found in warehouse: " + productId);
+            }
 
             if (product.getQuantity() < requestedQty) {
                 throw new ProductInShoppingCartLowQuantityInWarehouse(
