@@ -43,4 +43,6 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
       POSTGRES_DB: analyzer
+    volumes:
+      - ./infra/db-init:/docker-entrypoint-initdb.d
     restart: unless-stopped
