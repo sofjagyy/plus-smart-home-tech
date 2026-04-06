@@ -1,6 +1,8 @@
 package ru.yandex.practicum.delivery.service;
 
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.yandex.practicum.delivery.entity.Delivery;
@@ -21,6 +23,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class DeliveryService {
 
+    private static final Logger log = LoggerFactory.getLogger(DeliveryService.class);
     private static final double BASE_COST = 5.0;
 
     private final DeliveryRepository deliveryRepository;
@@ -54,11 +57,23 @@ public class DeliveryService {
     }
 
     public BigDecimal deliveryCost(OrderDto order) {
-        Delivery delivery = findByOrderId(order.getOrderId());
+        UUID orderId = order.getOrderId();
+        Delivery delivery = findByOrderId(orderId);
+        String warehouseStreet = delivery.getFromStreet();
+        String toStreet = delivery.getToStreet();
+
+        log.info(
+                "deliveryCost orderId={} in fragile={} weight={} volume={} fromStreet={} toStreet={} deliveryId={}",
+                orderId,
+                order.isFragile(),
+                order.getDeliveryWeight(),
+                order.getDeliveryVolume(),
+                warehouseStreet,
+                toStreet,
+                delivery.getDeliveryId());
 
         double cost = BASE_COST;
 
-        String warehouseStreet = delivery.getFromStreet();
         int multiplier = warehouseStreet != null && warehouseStreet.contains("ADDRESS_1") ? 1 : 2;
         cost = cost * multiplier + BASE_COST;
 
@@ -69,12 +84,13 @@ public class DeliveryService {
         cost += order.getDeliveryWeight() * 0.3;
         cost += order.getDeliveryVolume() * 0.2;
 
-        String toStreet = delivery.getToStreet();
         if (toStreet == null || !toStreet.equals(warehouseStreet)) {
             cost += cost * 0.2;
         }
 
-        return BigDecimal.valueOf(cost);
+        BigDecimal result = BigDecimal.valueOf(cost);
+        log.info("deliveryCost orderId={} out cost={} multiplier={}", orderId, result, multiplier);
+        return result;
     }
 
     @Transactional
